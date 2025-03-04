@@ -1,13 +1,15 @@
-from django.shortcuts import render
-from courses import permissons
+from rest_framework import viewsets
+from .models import Quiz, Question, Answer
+from .serializers import QuizSerializer, QuestionSerializer, AnswerSerializer
 
-# Create your views here.
 class QuizViewSet(viewsets.ModelViewSet):
     queryset = Quiz.objects.all()
     serializer_class = QuizSerializer
 
-    def get_permissions(self):
-        """Set permissions for different actions."""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:  
-            return [IsAuthenticated(), IsInstructor()]  # Only instructors can modify quizzes
-        return [IsAuthenticated()]  # Any logged-in user can view or attempt quizzes
+class QuestionViewSet(viewsets.ModelViewSet):
+    queryset = Question.objects.all()
+    serializer_class = QuestionSerializer
+
+class AnswerViewSet(viewsets.ModelViewSet):
+    queryset = Answer.objects.all()
+    serializer_class = AnswerSerializer
