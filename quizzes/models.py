@@ -1,14 +1,15 @@
 from django.db import models
 from django.conf import settings
-from courses.models import Course  # ✅ Correct way to import Course
+from courses.models import Course
+
 
 
 
 class Quiz(models.Model):
-    course = models.ForeignKey("courses.Course", on_delete=models.CASCADE, related_name="quizzes")
     title = models.CharField(max_length=255)
-    description = models.TextField()
-    difficulty = models.CharField(max_length=50, choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')])
+    description = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="quizzes")
+    created_at = models.DateTimeField(auto_now_add=True)
 
 class Question(models.Model):
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions")
