@@ -90,6 +90,8 @@ INSTALLED_APPS = [
     "drf_yasg",
     "rest_framework",
     "rest_framework_simplejwt",
+    'cloudinary',
+    'cloudinary_storage',
     
     "corsheaders",
     'rest_framework_simplejwt.token_blacklist',
@@ -180,3 +182,22 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+import os
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'dwf6aljlj',
+    'API_KEY': '229491956789972',
+    'API_SECRET': 'C6AKrWumbcwUexsb1i276tKV4ag',
+}
+
+cloudinary.config( 
+    cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'], 
+    api_key=CLOUDINARY_STORAGE['API_KEY'], 
+    api_secret=CLOUDINARY_STORAGE['API_SECRET'],
+    secure=True
+)

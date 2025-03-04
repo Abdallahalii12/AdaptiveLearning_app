@@ -37,7 +37,7 @@ class LoginSerializer(serializers.Serializer):
         if not email or not password:
             raise serializers.ValidationError("Both email and password are required.")
 
-        user = authenticate(email=email, password=password)  # 👈 Use email for authentication
+        user = authenticate(email=email, password=password)  
         if not user:
             raise serializers.ValidationError("Invalid email or password.")
 
