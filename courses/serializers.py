@@ -17,7 +17,21 @@ class LessonSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class LessonQuizSerializer(serializers.ModelSeriailzer):
-    model = LessonQuiz
-    fields='__all__'
+class LessonAnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LessonAnswer
+        fields = ['id', 'question', 'text', 'is_correct']
 
+class LessonQuestionSerializer(serializers.ModelSerializer):
+    answers = LessonAnswerSerializer(many=True, read_only=True)  # Nested answers
+
+    class Meta:
+        model = LessonQuestion
+        fields = ['id', 'quiz', 'text', 'question_type', 'answers']
+
+class LessonQuizSerializer(serializers.ModelSerializer):
+    questions = LessonQuestionSerializer(many=True, read_only=True)  # Nested questions
+
+    class Meta:
+        model = LessonQuiz
+        fields = ['id', 'lesson', 'title', 'questions']
