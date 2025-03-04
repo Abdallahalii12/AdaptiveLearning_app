@@ -41,6 +41,17 @@ SIMPLE_JWT = {
 }
 
 
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,  # If you use authentication, set this accordingly
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    },
+}
+
 
 
 REST_FRAMEWORK = {
@@ -50,6 +61,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.AllowAny',
     ),
+
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+
 }
 
 AUTHENTICATION_BACKENDS = [
@@ -71,7 +85,9 @@ INSTALLED_APPS = [
     #My Apps
     "users",
     "courses",
+    "quizzes",
 
+    'drf_yasg',
     "rest_framework",
     "rest_framework_simplejwt",
     

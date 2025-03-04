@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets
-from .models import Course, Enrollment, Lesson, Quiz
-from .serializers import CourseSerializer, EnrollmentSerializer, LessonSerializer, QuizSerializer
+from .models import Course, Enrollment, Lesson
+from .serializers import CourseSerializer, EnrollmentSerializer, LessonSerializer
 from django.core.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from .permissions import IsInstructorOrReadOnly, IsOwnerOrForbidden
@@ -36,14 +36,4 @@ class LessonViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), IsInstructor()]  
         return [IsAuthenticated()]  
 
-
-class QuizViewSet(viewsets.ModelViewSet):
-    queryset = Quiz.objects.all()
-    serializer_class = QuizSerializer
-
-    def get_permissions(self):
-        """Set permissions for different actions."""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:  
-            return [IsAuthenticated(), IsInstructor()]  # Only instructors can modify quizzes
-        return [IsAuthenticated()]  # Any logged-in user can view or attempt quizzes
 

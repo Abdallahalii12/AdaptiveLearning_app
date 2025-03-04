@@ -26,9 +26,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
-class LoginSerializer(serializers.Serializer):  # Change to Serializer
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True,required=True)
 
     def validate(self, data):
         email = data.get("email")
@@ -37,7 +37,7 @@ class LoginSerializer(serializers.Serializer):  # Change to Serializer
         if not email or not password:
             raise serializers.ValidationError("Both email and password are required.")
 
-        user = authenticate(username=email, password=password)
+        user = authenticate(email=email, password=password)  # 👈 Use email for authentication
         if not user:
             raise serializers.ValidationError("Invalid email or password.")
 
@@ -46,7 +46,7 @@ class LoginSerializer(serializers.Serializer):  # Change to Serializer
 
         data["user"] = user
         return data
-    
+
 
 
 class LogoutSerializer(serializers.Serializer):

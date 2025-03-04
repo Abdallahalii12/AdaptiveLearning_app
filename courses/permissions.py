@@ -20,7 +20,6 @@ class IsOwnerOrForbidden(BasePermission):
     
     def has_object_permission(self, request, view, obj):
         return request.user == obj.instructor  # Ensures only the owner can modify
-from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 class IsInstructorOrReadOnly(BasePermission):
     """Only instructors can create courses. Read access for everyone."""
