@@ -27,28 +27,32 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    password = serializers.CharField(write_only=True,required=True)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
 
     def validate(self, data):
         email = data.get("email")
         password = data.get("password")
 
-        if not email or not password:
-            raise serializers.ValidationError("Both email and password are required.")
+        # Authenticate user
+        user = authenticate(email=email, password=password)
 
-        user = authenticate(email=email, password=password)  
-        if not user:
-            raise serializers.ValidationError("Invalid email or password.")
+        if user is None:
+            raise serializers.ValidationError("Invalid credentials.")
+
+        if not isinstance(user, CustomUser):  # Ensure it's a user object
+            raise serializers.ValidationError("Authentication failed.")
+
+        if user.is_banned:
+            raise serializers.ValidationError("Your account has been banned. Contact support.")
 
         if not user.is_active:
-            raise serializers.ValidationError("This account is inactive.")
+            raise serializers.ValidationError("Your account is inactive. Contact support.")
 
+        # Add user to validated_data so that LoginView can access it
         data["user"] = user
         return data
-
-
-
+        
 class LogoutSerializer(serializers.Serializer):
         refresh = serializers.CharField()
 
