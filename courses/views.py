@@ -1,25 +1,14 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
-from .models import Course, Enrollment, Lesson
-from .serializers import CourseSerializer, EnrollmentSerializer, LessonSerializer,LessonQuizSerializer,LessonQuiz
-from django.core.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
-from .permissions import IsInstructorOrReadOnly, IsOwnerOrForbidden
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
-
-
-import cloudinary
-from django.conf import settings
-
-cloudinary.config( 
-    cloud_name=settings.CLOUDINARY_STORAGE['CLOUD_NAME'],  
-    api_key=settings.CLOUDINARY_STORAGE['API_KEY'],  
-    api_secret=settings.CLOUDINARY_STORAGE['API_SECRET'],  
-    secure=True
+from .models import Course, Enrollment, Lesson, LessonQuiz, Streak
+from .serializers import (
+    CourseSerializer, EnrollmentSerializer, LessonSerializer, LessonQuizSerializer, 
+    StreakSerializer
 )
-
+from .permissions import IsInstructorOrReadOnly, IsOwnerOrForbidden, IsStudent
+from rest_framework.response import Response
+from rest_framework.decorators import action
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -30,36 +19,86 @@ class CourseViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(instructor=self.request.user)  # Automatically assign the instructor
 
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStudent])
+    def enroll(self, request, pk=None):
+        """ Allow students to enroll in a course """
+        course = self.get_object()
+        enrollment, created = Enrollment.objects.get_or_create(user=request.user, course=course)
+
+        if created:
+            return Response({"message": "Enrolled successfully!"})
+        return Response({"message": "Already enrolled!"}, status=400)
+
 
 class EnrollmentViewSet(viewsets.ModelViewSet):
     queryset = Enrollment.objects.all()
     serializer_class = EnrollmentSerializer
+    permission_classes = [IsAuthenticated]
+
     def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:  
-            return [IsAuthenticated(), IsStudent()]  # Only students can enroll or modify their enrollments
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsStudent()]  # Only students can enroll
         return [IsAuthenticated()]  # Instructors can view enrollments
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStudent])
+    def complete_lesson(self, request, pk=None):
+        """ Mark a lesson as completed and update streak """
+        enrollment = self.get_object()
+        lesson_id = request.data.get("lesson_id")
+        lesson = get_object_or_404(Lesson, id=lesson_id, course=enrollment.course)
+
+        lesson.completed_by.add(request.user)  # Mark lesson as completed
+
+        # Update streak
+        streak, _ = Streak.objects.get_or_create(user=request.user)
+        streak.current_streak += 1
+        if streak.current_streak > streak.longest_streak:
+            streak.longest_streak = streak.current_streak
+        streak.save()
+
+        return Response({"message": "Lesson completed! Streak updated."})
+
 
 class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
-    permission_classes=[IsAuthenticated, IsInstructorOrReadOnly, IsOwnerOrForbidden]
+    permission_classes = [IsAuthenticated, IsInstructorOrReadOnly, IsOwnerOrForbidden]
+
+    def get_queryset(self):
+        """ Students should only see published lessons """
+        if self.request.user.is_authenticated and not self.request.user.is_instructor:
+            return Lesson.objects.filter(is_published=True)
+        return Lesson.objects.all()
+
     def get_permissions(self):
-        """ Apply different permissions based on the request method """
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:  
-            return [IsAuthenticated(), IsInstructor()]  
-        return [IsAuthenticated()] 
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsInstructor()]
+        return [IsAuthenticated()]
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsInstructorOrReadOnly])
+    def publish(self, request, pk=None):
+        """ Allow instructors to publish lessons """
+        lesson = self.get_object()
+        lesson.is_published = True
+        lesson.save()
+        return Response({"message": "Lesson published!"})
 
 
 class LessonQuizViewSet(viewsets.ModelViewSet):
-    queryset = LessonQuiz.objects.all() 
+    queryset = LessonQuiz.objects.all()
     serializer_class = LessonQuizSerializer
-    permission_classes = [IsInstructorOrReadOnly] 
-    
+    permission_classes = [IsAuthenticated, IsInstructorOrReadOnly]
+
     def get_queryset(self):
         lesson_id = self.request.query_params.get('lesson_id')
         if lesson_id:
             return LessonQuiz.objects.filter(lesson_id=lesson_id)
         return LessonQuiz.objects.all()
 
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStudent])
+    def complete_quiz(self, request, pk=None):
+        """ Mark a quiz as completed """
+        quiz = self.get_object()
+        quiz.completed_by.add(request.user)  # Mark quiz as completed
 
-
+        return Response({"message": "Quiz completed!"})
