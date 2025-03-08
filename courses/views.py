@@ -20,7 +20,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         serializer.save(instructor=self.request.user)  # Automatically assign the instructor
 
 
-# 📌 Enrollment ViewSet (Handles Enrollment)
+
 class EnrollmentViewSet(viewsets.ModelViewSet):
     queryset = Enrollment.objects.all()
     serializer_class = EnrollmentSerializer
@@ -44,7 +44,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         return Response({"message": "Already enrolled!"}, status=400)
 
 
-# 📌 Lesson ViewSet (Handles Lessons & Completion)
+
 class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
@@ -95,6 +95,6 @@ class LessonQuizViewSet(viewsets.ModelViewSet):
     def complete_quiz(self, request, pk=None):
         """ Mark a quiz as completed """
         quiz = self.get_object()
-        quiz.completed_by.add(request.user)  # Mark quiz as completed
+        quiz.completed_by.add(request.user)  
 
         return Response({"message": "Quiz completed!"})
