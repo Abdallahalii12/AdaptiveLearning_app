@@ -11,6 +11,11 @@ class Quiz(models.Model):
     description = models.TextField(blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="quizzes")
     created_at = models.DateTimeField(auto_now_add=True)
+    completed_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="completed_standalone_quizzes",  
+        blank=True
+    )
 
 class Question(models.Model):
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions")

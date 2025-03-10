@@ -21,7 +21,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             username=validated_data['username'],
             password=validated_data['password'],
             email=validated_data.get('email', ''),
-            role=validated_data.get('role')  # Add the role field
+            role=validated_data.get('role')  
         )
         return user
 
@@ -40,7 +40,7 @@ class LoginSerializer(serializers.Serializer):
         if user is None:
             raise serializers.ValidationError("Invalid credentials.")
 
-        if not isinstance(user, CustomUser):  # Ensure it's a user object
+        if not isinstance(user, CustomUser):  
             raise serializers.ValidationError("Authentication failed.")
 
         if user.is_banned:

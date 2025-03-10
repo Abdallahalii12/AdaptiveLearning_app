@@ -9,6 +9,10 @@ from .serializers import (
     StreakSerializer
 )
 from .permissions import IsInstructorOrReadOnly, IsOwnerOrForbidden, IsStudent
+from .models import Achievement
+from datetime import timedelta
+from django.utils.timezone import now
+
 
 # 📌 Course ViewSet (Handles Course CRUD)
 class CourseViewSet(viewsets.ModelViewSet):
@@ -43,7 +47,12 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             return Response({"message": "Enrolled successfully!"})
         return Response({"message": "Already enrolled!"}, status=400)
 
-
+def grant_achievement(user, title, description, badge_image=None):
+    """ Grant an achievement if the user doesn’t already have it """
+    if not Achievement.objects.filter(user=user, title=title).exists():
+        Achievement.objects.create(
+            user=user, title=title, description=description, badge_image=badge_image
+        )
 
 class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
@@ -73,10 +82,23 @@ class LessonViewSet(viewsets.ModelViewSet):
 
         # Update streak
         streak, _ = Streak.objects.get_or_create(user=request.user)
-        streak.current_streak += 1
+
+        if streak.last_activity and streak.last_activity.date() == (now() - timedelta(days=1)).date():
+            streak.current_streak += 1
+        else:
+            streak.current_streak = 1  # Reset streak if a day is missed
+
         if streak.current_streak > streak.longest_streak:
             streak.longest_streak = streak.current_streak
+        
+        streak.last_activity = now()
         streak.save()
+
+        # 🎖️ Grant Streak Badges
+        if streak.current_streak == 7:
+            grant_achievement(request.user, "One-Week Streak!", "Completed lessons for 7 days in a row!", "7-day-badge.png")
+        elif streak.current_streak == 30:
+            grant_achievement(request.user, "One-Month Streak!", "Completed lessons for 30 days in a row!", "30-day-badge.png")
 
         return Response({"message": "Lesson completed! Streak updated."})
 
@@ -93,8 +115,22 @@ class LessonQuizViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsStudent])
     def complete_quiz(self, request, pk=None):
-        """ Mark a quiz as completed """
+        """ Grade the quiz and update achievements """
         quiz = self.get_object()
-        quiz.completed_by.add(request.user)  
+        user_answers = request.data.get("answers", {})  # Expected format: {"question_id": "answer_id"}
 
-        return Response({"message": "Quiz completed!"})
+        total_score = 0
+        for question in quiz.questions.all():
+            correct_answer = question.correct_answer.id
+            user_answer = user_answers.get(str(question.id))
+
+            if user_answer and int(user_answer) == correct_answer:
+                total_score += question.points
+
+        quiz.completed_by.add(request.user)  # Mark quiz as completed
+
+      
+        if total_score >= 80: 
+            grant_achievement(request.user, "Quiz Master", "Scored 80% or more on a quiz!", "quiz-master-badge.png")
+
+        return Response({"message": "Quiz completed!", "score": total_score})

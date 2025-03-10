@@ -4,5 +4,6 @@ def custom_response(success=True, message="", data=None, status=200):
     return Response({
         "success": success,
         "message": message,
-        "data": data
+        "data": data,
+        "status":status
     }, status=status)
