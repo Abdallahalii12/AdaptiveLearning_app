@@ -4,4 +4,4 @@ class ProfilesConfig(AppConfig):
     name = 'profiles'
 
     def ready(self):
-        import profiles.signals  # ربط الإشارة هنا
+        import profiles.signals 
