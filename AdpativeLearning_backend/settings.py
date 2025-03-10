@@ -87,7 +87,7 @@ INSTALLED_APPS = [
     "users",
     "courses",
     "quizzes",
-
+    "profiles",
     "drf_yasg",
     "rest_framework",
     "rest_framework_simplejwt",
