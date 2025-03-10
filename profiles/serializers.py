@@ -8,4 +8,4 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ['bio', 'profile_picture', 'email', 'username', 'role']  # إزالة `user` لأنه غير ضروري في التحديث
+        fields = ['bio', 'profile_picture', 'email', 'username', 'role']  
