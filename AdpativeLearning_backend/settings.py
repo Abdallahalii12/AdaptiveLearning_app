@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     "quizzes",
     "profiles",
     "drf_yasg",
+    "Analytics",
     "rest_framework",
     "rest_framework_simplejwt",
     'cloudinary',
