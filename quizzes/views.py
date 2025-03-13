@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from courses.models import Streak, Achievement
+from rest_framework.views import APIView
 
 
 class QuizViewSet(viewsets.ModelViewSet):
@@ -47,3 +48,6 @@ class QuestionViewSet(viewsets.ModelViewSet):
 class AnswerViewSet(viewsets.ModelViewSet):
     queryset = Answer.objects.all()
     serializer_class = AnswerSerializer
+
+class QuizSubmission(APIView):
+    pass
