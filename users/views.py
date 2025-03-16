@@ -9,11 +9,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import authenticate
 from .utils import custom_response
+from drf_yasg.utils import swagger_auto_schema
 
 
 
 
-# Create your views here.
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]  # Allow anyone to register
