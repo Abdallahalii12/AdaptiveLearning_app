@@ -110,7 +110,12 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     'django.middleware.csrf.CsrfViewMiddleware',
 ]
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+        # Vite's default port
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = "AdpativeLearning_backend.urls"
 
@@ -203,3 +208,6 @@ cloudinary.config(
     api_secret=CLOUDINARY_STORAGE['API_SECRET'],
     secure=True
 )
+
+# Make sure these are properly configured
+

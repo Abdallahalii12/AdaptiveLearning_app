@@ -38,12 +38,12 @@ class LoginView(APIView):
 
         user = serializer.validated_data["user"]
         if user.is_active:
-            refresh = RefreshToken.for_user(user)
+            access = AccessToken.for_user(user)
             return custom_response(
                 success=True,
                 message="Login successful",
                 data={
-                    "refresh": str(refresh),
+                    # "refresh": str(refresh),
                     "access": str(refresh.access_token),
                     "access_token_expiry": refresh.access_token.payload['exp'],
                     "user": {
@@ -57,11 +57,11 @@ class LoginView(APIView):
         return custom_response(success=False, message="User is inactive", status=status.HTTP_401_UNAUTHORIZED)
 
 
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+# class LogoutView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        serializer = LogoutSerializer(data=request.data)
-        if serializer.is_valid():
-            return custom_response(success=True, message="Logout successful", status=status.HTTP_200_OK)
-        return custom_response(success=False, message="Invalid request", data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     def post(self, request):
+#         serializer = LogoutSerializer(data=request.data)
+#         if serializer.is_valid():
+#             return custom_response(success=True, message="Logout successful", status=status.HTTP_200_OK)
+#         return custom_response(success=False, message="Invalid request", data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -54,15 +54,5 @@ class LoginSerializer(serializers.Serializer):
         return data
         
 class LogoutSerializer(serializers.Serializer):
-        refresh = serializers.CharField()
-
-        def validate(self,data):
-            try:
-                token = RefreshToken(data["refresh"])  
-                token.blacklist()  # Blacklist the token
-            except TokenError:
-                raise serializers.ValidationError("Invalid or expired refresh token.")
-
-            return data
-
+        pass
 
