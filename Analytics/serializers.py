@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import UserActivityLog
+from .models import UserActivityLog,InstructorAnalytics
 from django.db import models
 
 class UserActivityLogSerializer(serializers.ModelSerializer):
@@ -10,4 +10,11 @@ class UserActivityLogSerializer(serializers.ModelSerializer):
     class Meta:
         model=UserActivityLog
         fields= '__all__'
-    
+
+
+class InstructorAnalyticsSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="student.username", read_only=True)
+
+    class Meta:
+        model = InstructorAnalytics
+        fields = ['total_students', 'average_quiz_score', 'completion_rate', 'drop_off_rate', 'username']
