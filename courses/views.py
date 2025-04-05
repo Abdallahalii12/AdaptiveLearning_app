@@ -134,3 +134,18 @@ class LessonQuizViewSet(viewsets.ModelViewSet):
             grant_achievement(request.user, "Quiz Master", "Scored 80% or more on a quiz!", "quiz-master-badge.png")
 
         return Response({"message": "Quiz completed!", "score": total_score})
+
+ # Courses search 
+class CourseViewSet(viewsets.ModelViewSet):
+    queryset = Course.objects.all()
+    serializer_class = CourseSearchSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        queryset = Course.objects.all()
+
+        search_query = self.request.query_params.get('search', None)
+        if search_query:
+            queryset = queryset.filter(title__icontains=search_query)
+
+        return queryset
