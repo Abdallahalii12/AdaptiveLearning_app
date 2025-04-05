@@ -151,3 +151,5 @@ class CourseViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(title__icontains=search_query)
 
         return queryset
+
+#URL for Search courses http://127.0.0.1:8000/courses/?search= course_name 
