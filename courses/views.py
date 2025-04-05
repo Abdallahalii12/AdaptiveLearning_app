@@ -13,6 +13,8 @@ from .models import Achievement
 from datetime import timedelta
 from django.utils.timezone import now
 
+from .serializers import CourseSearchSerializer 
+from rest_framework import permissions
 
 # 📌 Course ViewSet (Handles Course CRUD)
 class CourseViewSet(viewsets.ModelViewSet):
