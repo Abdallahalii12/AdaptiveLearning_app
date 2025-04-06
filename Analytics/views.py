@@ -30,13 +30,11 @@ class UserActivityViewSet(viewsets.ModelViewSet):
 
 
 class InstructorAnalyticsViewSet(APIView):
-    serializer_class=InstructorAnalyticsSerializer
-    permission_class=[IsAuthenticated]
-    def get(self,request,*args,**kwargs):
-        instructor=request.user
+    permission_classes = [IsAuthenticated]
 
-        courses=Course.objects.filter(instructor=instructor)
-
+    def get(self, request, *args, **kwargs):
+        instructor = request.user
+        courses = Course.objects.filter(instructor=instructor)
 
         total_students = 0
         total_quiz_score = 0
@@ -44,13 +42,14 @@ class InstructorAnalyticsViewSet(APIView):
         total_dropped_off = 0
 
         for course in courses:
-            students=course.enrolled_students.all()
-            total_students+=len(students)
+            students = course.enrolled_students.all()
+            total_students += students.count()
 
             for student in students:
-                quizzes=Quiz.objects.filter(course=course)
-                total_quiz_score += sum([quiz.get_score_for_student(student) for quiz in quiz])
-
+                quizzes = Quiz.objects.filter(course=course)
+                total_quiz_score += sum([
+                    quiz.get_score_for_student(student) for quiz in quizzes
+                ])
 
                 if student.completed_course(course):
                     total_completed_courses += 1
@@ -58,25 +57,17 @@ class InstructorAnalyticsViewSet(APIView):
                     total_dropped_off += 1
 
         average_quiz_score = total_quiz_score / total_students if total_students else 0
-
-
         completion_rate = total_completed_courses / total_students * 100 if total_students else 0
-
-
         drop_off_rate = total_dropped_off / total_students * 100 if total_students else 0
 
-        
         analytics_data = {
             'total_students': total_students,
             'average_quiz_score': average_quiz_score,
             'completion_rate': completion_rate,
             'drop_off_rate': drop_off_rate
         }
-        
-        # Return the calculated data in the response
+
         return Response(analytics_data, status=status.HTTP_200_OK)
-
-
 
 
 
