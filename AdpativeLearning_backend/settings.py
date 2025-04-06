@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     "courses",
     "quizzes",
     "profiles",
+    "forum",
     "drf_yasg",
     "Analytics",
     "rest_framework",
