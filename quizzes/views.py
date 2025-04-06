@@ -64,8 +64,8 @@ class QuizSubmission(APIView):
         questions=quiz.questions.all()
         correct_count=0
         # Check if MCQ or text input
-        if question.question_type == "mcq":
-                correct_option = question.answers.filter(is_correct=True).first()
+        if questions.question_type == "mcq":
+                correct_option = questions.answers.filter(is_correct=True).first()
                 if correct_option and user_answer == str(correct_option.id):
                     correct_count += 1
                 else:
