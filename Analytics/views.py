@@ -5,6 +5,39 @@ from .models import UserActivityLog
 from .serializers import UserActivityLogSerializer,InstructorAnalyticsSerializer
 from courses.models import Course
 from rest_framework.views import APIView
+from quizzes.models import Quiz
+from datetime import timedelta
+from django.utils.timezone import now
+from rest_framework.response import Response
+
+class StudentAnalyticsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role != "student":
+            return Response({"detail": "Not a student"}, status=403)
+
+        logs = UserActivityLog.objects.filter(user=user)
+
+        lessons_watched = logs.filter(lessons_watched__isnull=False).count()
+        lesson_quizzes = logs.filter(lesson_quiz__isnull=False).count()
+        big_quizzes = logs.filter(big_quiz__isnull=False).count()
+
+        total_quizzes = lesson_quizzes + big_quizzes
+
+        # Optional: Streaks or time tracking if available
+        time_spent_minutes = 0  # Placeholder: you can track and compute this later
+
+        analytics = {
+            "lessons_watched": lessons_watched,
+            "quizzes_attempted": total_quizzes,
+            "lesson_quizzes": lesson_quizzes,
+            "big_quizzes": big_quizzes,
+            "time_spent_minutes": time_spent_minutes,  # If tracked
+        }
+
+        return Response(analytics)
 
 
 
