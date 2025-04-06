@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from courses.models import LessonQuiz,Lesson
+from courses.models import LessonQuiz,Lesson,Course
 from quizzes.models import Quiz
 
 # Create your models here.
@@ -16,8 +16,24 @@ class UserActivityLog(models.Model):
         return f"{self.user.username} - {self.time_stamp}"
 
 
-class InstructorAnalysis(models.Model):
-    pass
+class InstructorAnalytics(models.Model):
+    user=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="instructor_insights")
+    course=models.ForeignKey(Course,on_delete=models.CASCADE,related_name="course_insights")
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="student_insights")
+
+    total_students = models.PositiveIntegerField(default=0)  
+    average_quiz_score = models.FloatField(null=True, blank=True)  
+    completion_rate = models.FloatField(null=True, blank=True)  
+    drop_off_rate = models.FloatField(null=True, blank=True)  
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Analytics for {self.course.title} by {self.user.username}"
+
+    
 
 
 class AdminReport(models.Model):
