@@ -1,6 +1,14 @@
 from rest_framework import serializers
 from .models import Course, Enrollment, Lesson, LessonQuiz, LessonQuestion, LessonAnswer, Streak, Achievement
 
+#Course Search Serializer
+class CourseSearchSerializer(serializers.ModelSerializer):
+    instructor_name = serializers.CharField(source='instructor.username')
+    
+    class Meta:
+        model = Course
+        fields = ['title', 'instructor_name', 'image'] 
+
 # 📌 Course Serializer
 class CourseSerializer(serializers.ModelSerializer):
     students_enrolled = serializers.PrimaryKeyRelatedField(many=True, read_only=True)  # Show enrolled students
