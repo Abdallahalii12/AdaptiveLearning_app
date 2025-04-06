@@ -35,7 +35,7 @@ class InstructorAnalyticsViewSet(APIView):
     def get(self,request,*args,**kwargs):
         instructor=request.user
 
-        course=Course.objects.filter(instructor=instructor)
+        courses=Course.objects.filter(instructor=instructor)
 
 
         total_students = 0
