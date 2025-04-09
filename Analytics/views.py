@@ -1,14 +1,19 @@
 from django.shortcuts import render
 from rest_framework import viewsets,status
 from rest_framework.permissions import IsAuthenticated
-from .models import UserActivityLog
-from .serializers import UserActivityLogSerializer,InstructorAnalyticsSerializer
-from courses.models import Course
-from rest_framework.views import APIView
+from .models import UserActivityLog, InstructorAnalytics
+from .serializers import UserActivityLogSerializer, InstructorAnalyticsSerializer
+from courses.models import Course, Enrollment, LessonQuiz
 from quizzes.models import Quiz
+from rest_framework.views import APIView
 from datetime import timedelta
 from django.utils.timezone import now
 from rest_framework.response import Response
+from django.db.models import Avg, Count, F
+from django.utils.timezone import now
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter
+from rest_framework.decorators import action
 
 class StudentAnalyticsAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -44,63 +49,122 @@ class StudentAnalyticsAPIView(APIView):
 
 
 # Create your views here.
-class UserActivityViewSet(viewsets.ModelViewSet):
-    serializer_class=UserActivityLogSerializer
-    permission_classes=[IsAuthenticated]
-    queryset = UserActivityLog.objects.all() 
+class UserActivityLogViewSet(viewsets.ModelViewSet):
+    serializer_class = UserActivityLogSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['user', 'lesson_quiz', 'big_quiz', 'lessons_watched']
+    ordering_fields = ['time_stamp']
+    ordering = ['-time_stamp']
 
     def get_queryset(self):
-        user=self.request.user
-        if user.role=="student":
+        user = self.request.user
+        if user.role == 'student':
             return UserActivityLog.objects.filter(user=user)
-        
-        elif user.role=="instructor":
-            instructor_courses=user.courses.all()
-            return UserActivityLog.objects.filter(user__enrolled_courses__in=instructor_courses)
-        
-        else:
-            return UserActivityLog.objects.all()
+        elif user.role == 'instructor':
+            return UserActivityLog.objects.filter(
+                user__enrollments__course__in=user.courses_taught.all()
+            )
+        return UserActivityLog.objects.none()
 
-
-class InstructorAnalyticsViewSet(APIView):
+class InstructorAnalyticsViewSet(viewsets.ModelViewSet):
+    serializer_class = InstructorAnalyticsSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['instructor', 'course']
+    ordering_fields = ['updated_at']
+    ordering = ['-updated_at']
 
-    def get(self, request, *args, **kwargs):
-        instructor = request.user
-        courses = Course.objects.filter(instructor=instructor)
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'instructor':
+            return InstructorAnalytics.objects.filter(instructor=user)
+        return InstructorAnalytics.objects.none()
 
-        total_students = 0
-        total_quiz_score = 0
-        total_completed_courses = 0
-        total_dropped_off = 0
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def generate_analytics(self, request):
+        if request.user.role != 'instructor':
+            return Response(
+                {"error": "Only instructors can generate analytics."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
-        for course in courses:
-            students = course.enrolled_students.all()
-            total_students += students.count()
+        course_id = request.data.get('course_id')
+        if not course_id:
+            return Response(
+                {"error": "Course ID is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-            for student in students:
-                quizzes = Quiz.objects.filter(course=course)
-                total_quiz_score += sum([
-                    quiz.get_score_for_student(student) for quiz in quizzes
-                ])
+        try:
+            course = Course.objects.get(id=course_id, instructor=request.user)
+        except Course.DoesNotExist:
+            return Response(
+                {"error": "Course not found or you don't have permission."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-                if student.completed_course(course):
-                    total_completed_courses += 1
-                else:
-                    total_dropped_off += 1
+        # Calculate analytics
+        total_students = course.enrollments.filter(status='active').count()
+        
+        # Calculate average quiz score
+        quiz_scores = []
+        for quiz in course.lessons.filter(quizzes__isnull=False):
+            quiz_scores.extend(quiz.quizzes.values_list('completed_by__id', flat=True))
+        
+        average_quiz_score = sum(quiz_scores) / len(quiz_scores) if quiz_scores else None
 
-        average_quiz_score = total_quiz_score / total_students if total_students else 0
-        completion_rate = total_completed_courses / total_students * 100 if total_students else 0
-        drop_off_rate = total_dropped_off / total_students * 100 if total_students else 0
+        # Calculate completion rate
+        total_enrollments = course.enrollments.count()
+        completed_enrollments = course.enrollments.filter(status='completed').count()
+        completion_rate = (completed_enrollments / total_enrollments) * 100 if total_enrollments else 0
 
-        analytics_data = {
-            'total_students': total_students,
-            'average_quiz_score': average_quiz_score,
-            'completion_rate': completion_rate,
-            'drop_off_rate': drop_off_rate
-        }
+        # Calculate drop-off rate
+        dropped_enrollments = course.enrollments.filter(status='dropped').count()
+        drop_off_rate = (dropped_enrollments / total_enrollments) * 100 if total_enrollments else 0
 
-        return Response(analytics_data, status=status.HTTP_200_OK)
+        # Create or update analytics
+        analytics, created = InstructorAnalytics.objects.update_or_create(
+            instructor=request.user,
+            course=course,
+            defaults={
+                'total_students': total_students,
+                'average_quiz_score': average_quiz_score,
+                'completion_rate': completion_rate,
+                'drop_off_rate': drop_off_rate
+            }
+        )
+
+        serializer = self.get_serializer(analytics)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def student_progress(self, request, pk=None):
+        analytics = self.get_object()
+        if request.user != analytics.instructor:
+            return Response(
+                {"error": "You don't have permission to view these analytics."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Get student progress data
+        enrollments = analytics.course.enrollments.filter(status='active')
+        progress_data = []
+        
+        for enrollment in enrollments:
+            student_data = {
+                'student_id': enrollment.student.id,
+                'student_name': enrollment.student.username,
+                'progress': enrollment.progress,
+                'last_accessed': enrollment.last_accessed,
+                'completed_lessons': analytics.course.lessons.filter(
+                    completed_by=enrollment.student
+                ).count(),
+                'total_lessons': analytics.course.lessons.count()
+            }
+            progress_data.append(student_data)
+
+        return Response(progress_data)
 
 
 

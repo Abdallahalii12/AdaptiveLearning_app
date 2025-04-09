@@ -11,18 +11,37 @@ class CourseSearchSerializer(serializers.ModelSerializer):
 
 # 📌 Course Serializer
 class CourseSerializer(serializers.ModelSerializer):
-    students_enrolled = serializers.PrimaryKeyRelatedField(many=True, read_only=True)  # Show enrolled students
+    instructor_name = serializers.CharField(source='instructor.username', read_only=True)
+    instructor_email = serializers.CharField(source='instructor.email', read_only=True)
+    students_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Course
-        fields = ['id', 'instructor', 'title', 'video', 'description', 'price', 'image', 'category', 
-                  'duration', 'created_at', 'status', 'requirements', 'learning_outcomes', 'students_enrolled']
+        fields = [
+            'id', 'instructor', 'instructor_name', 'instructor_email',
+            'title', 'video', 'description', 'price', 'image', 'category',
+            'duration', 'created_at', 'updated_at', 'status', 'requirements',
+            'learning_outcomes', 'students_count'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_students_count(self, obj):
+        return obj.students_enrolled.count()
 
 # 📌 Enrollment Serializer
 class EnrollmentSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.username', read_only=True)
+    student_email = serializers.CharField(source='student.email', read_only=True)
+    course_title = serializers.CharField(source='course.title', read_only=True)
+    
     class Meta:
         model = Enrollment
-        fields = '__all__'
+        fields = [
+            'id', 'student', 'student_name', 'student_email',
+            'course', 'course_title', 'enrolled_at', 'last_accessed',
+            'progress', 'status', 'completion_date'
+        ]
+        read_only_fields = ['enrolled_at', 'last_accessed']
 
 # 📌 Lesson Serializer
 class LessonSerializer(serializers.ModelSerializer):

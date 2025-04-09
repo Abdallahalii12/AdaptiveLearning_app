@@ -13,8 +13,15 @@ class UserActivityLogSerializer(serializers.ModelSerializer):
 
 
 class InstructorAnalyticsSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source="student.username", read_only=True)
-
+    instructor_name = serializers.CharField(source='instructor.username', read_only=True)
+    instructor_email = serializers.CharField(source='instructor.email', read_only=True)
+    course_title = serializers.CharField(source='course.title', read_only=True)
+    
     class Meta:
         model = InstructorAnalytics
-        fields = ['total_students', 'average_quiz_score', 'completion_rate', 'drop_off_rate', 'username']
+        fields = [
+            'id', 'instructor', 'instructor_name', 'instructor_email',
+            'course', 'course_title', 'total_students', 'average_quiz_score',
+            'completion_rate', 'drop_off_rate', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']

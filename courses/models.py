@@ -5,27 +5,54 @@ import cloudinary.models
 
 
 class Course(models.Model):
-    instructor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="courses")
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("published", "Published"),
+        ("archived", "Archived")
+    ]
+
+    CATEGORY_CHOICES = [
+        ("programming", "Programming"),
+        ("design", "Design"),
+        ("business", "Business"),
+        ("science", "Science"),
+        ("mathematics", "Mathematics"),
+        ("language", "Language"),
+        ("other", "Other")
+    ]
+
+    instructor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="courses_taught",
+        limit_choices_to={'role': 'instructor'}
+    )
     title = models.CharField(max_length=200)
     video = cloudinary.models.CloudinaryField('video', resource_type='video', blank=True, null=True)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    image =cloudinary.models.CloudinaryField('image', blank=True, null=True)
-
-    category = models.CharField(max_length=50, choices=[
-        ("programming", "Programming"),
-        ("design", "Design"),
-        ("business", "Business"),
-    ])
-    duration = models.DurationField()  
+    image = cloudinary.models.CloudinaryField('image', blank=True, null=True)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    duration = models.DurationField()
     created_at = models.DateTimeField(auto_now_add=True)
-
-    # New fields
-    students_enrolled = models.ManyToManyField(settings.AUTH_USER_MODEL, through="Enrollment", related_name="enrolled_courses")
-    status = models.CharField(max_length=20, choices=[("draft", "Draft"), ("published", "Published")], default="draft")
+    updated_at = models.DateTimeField(auto_now=True)
+    students_enrolled = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        through="Enrollment",
+        related_name="enrolled_courses",
+        limit_choices_to={'role': 'student'}
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
     requirements = models.TextField(blank=True, null=True)
     learning_outcomes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['title']),
+            models.Index(fields=['category']),
+            models.Index(fields=['status']),
+        ]
+        ordering = ['-created_at']
 
     def __str__(self):
         return self.title
@@ -33,16 +60,49 @@ class Course(models.Model):
 
 # 📌 Enrollment Model (For tracking course enrollment)
 class Enrollment(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("completed", "Completed"),
+        ("dropped", "Dropped"),
+        ("paused", "Paused")
+    ]
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='enrollments',
+        limit_choices_to={'role': 'student'}
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='enrollments'
+    )
     enrolled_at = models.DateTimeField(auto_now_add=True)
+    last_accessed = models.DateTimeField(auto_now=True)
     progress = models.FloatField(default=0.0)
-    status = models.CharField(max_length=20, choices=[("active", "Active"), ("completed", "Completed")])
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active'
+    )
+    completion_date = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["user", "course"], name="unique_enrollment")
+            models.UniqueConstraint(
+                fields=["student", "course"],
+                name="unique_enrollment"
+            )
         ]
+        indexes = [
+            models.Index(fields=['student', 'course']),
+            models.Index(fields=['status']),
+        ]
+        ordering = ['-enrolled_at']
+
+    def __str__(self):
+        return f"{self.student.email} - {self.course.title}"
 
 
 # 📌 Lesson Model

@@ -17,21 +17,33 @@ class UserActivityLog(models.Model):
 
 
 class InstructorAnalytics(models.Model):
-    user=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name="instructor_insights")
-    course=models.ForeignKey(Course,on_delete=models.CASCADE,related_name="course_insights")
-    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="student_insights")
-
-    total_students = models.PositiveIntegerField(default=0)  
-    average_quiz_score = models.FloatField(null=True, blank=True)  
-    completion_rate = models.FloatField(null=True, blank=True)  
-    drop_off_rate = models.FloatField(null=True, blank=True)  
-
-    # Timestamps
+    instructor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="instructor_analytics",
+        limit_choices_to={'role': 'instructor'}
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name="analytics"
+    )
+    total_students = models.PositiveIntegerField(default=0)
+    average_quiz_score = models.FloatField(null=True, blank=True)
+    completion_rate = models.FloatField(null=True, blank=True)
+    drop_off_rate = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        unique_together = ['instructor', 'course']
+        indexes = [
+            models.Index(fields=['instructor', 'course']),
+        ]
+        ordering = ['-updated_at']
+
     def __str__(self):
-        return f"Analytics for {self.course.title} by {self.user.username}"
+        return f"Analytics for {self.course.title} by {self.instructor.email}"
 
     
 
