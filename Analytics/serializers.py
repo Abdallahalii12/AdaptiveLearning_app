@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import UserActivityLog,InstructorAnalytics
 from django.db import models
+from courses.serializers import StreakSerializer, AchievementSerializer
 
 class UserActivityLogSerializer(serializers.ModelSerializer):
     username=serializers.CharField(source="user.username",read_only=True)

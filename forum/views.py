@@ -11,12 +11,13 @@ from courses.models import Course
 
 # ViewSet for managing Threads
 class ThreadViewSet(viewsets.ModelViewSet):
+    queryset = Thread.objects.all()
     serializer_class = ThreadSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['course', 'author']
-    search_fields = ['title']
-    ordering_fields = ['created_at']
+    filterset_fields = ['course', 'author', 'is_pinned', 'is_closed']
+    search_fields = ['title', 'content']
+    ordering_fields = ['created_at', 'reply_count', 'view_count']
     ordering = ['-created_at']
 
     def get_queryset(self):
@@ -37,8 +38,40 @@ class ThreadViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def pin(self, request, pk=None):
+        thread = self.get_object()
+        if request.user != thread.course.instructor:
+            return Response(
+                {"error": "Only course instructors can pin threads."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        thread.is_pinned = not thread.is_pinned
+        thread.save()
+        return Response({"message": f"Thread {'pinned' if thread.is_pinned else 'unpinned'} successfully."})
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def close(self, request, pk=None):
+        thread = self.get_object()
+        if request.user != thread.course.instructor and request.user != thread.author:
+            return Response(
+                {"error": "Only course instructors or thread authors can close threads."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        thread.is_closed = not thread.is_closed
+        thread.save()
+        return Response({"message": f"Thread {'closed' if thread.is_closed else 'reopened'} successfully."})
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def add_post(self, request, pk=None):
         thread = self.get_object()
+        if thread.is_closed:
+            return Response(
+                {"error": "Cannot post in closed threads."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if thread.course.status != 'published':
             return Response(
                 {"error": "Cannot post in threads of unpublished courses."},
@@ -61,19 +94,22 @@ class ThreadViewSet(viewsets.ModelViewSet):
         serializer = PostSerializer(data=data, context={'request': request})
         
         if serializer.is_valid():
-            serializer.save(author=request.user)
+            post = serializer.save(author=request.user)
+            thread.reply_count = thread.posts.count()
+            thread.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ViewSet for managing Posts
 class PostViewSet(viewsets.ModelViewSet):
+    queryset = Post.objects.all()
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['thread', 'author', 'parent']
+    filterset_fields = ['thread', 'author', 'parent', 'is_edited']
     search_fields = ['content']
-    ordering_fields = ['created_at']
+    ordering_fields = ['created_at', 'like_count']
     ordering = ['-created_at']
 
     def get_queryset(self):
@@ -93,6 +129,21 @@ class PostViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAuthenticated])
+    def edit(self, request, pk=None):
+        post = self.get_object()
+        if request.user != post.author:
+            return Response(
+                {"error": "You can only edit your own posts."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = PostSerializer(post, data=request.data, partial=True)
+        if serializer.is_valid():
+            post = serializer.save(is_edited=True)
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def like(self, request, pk=None):
         post = self.get_object()
@@ -103,7 +154,12 @@ class PostViewSet(viewsets.ModelViewSet):
         
         if not created:
             like.delete()
+            post.like_count = post.likes.count()
+            post.save()
             return Response({"message": "Post unliked."})
+        
+        post.like_count = post.likes.count()
+        post.save()
         return Response({"message": "Post liked."})
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
@@ -142,6 +198,7 @@ class LikeViewSet(viewsets.ModelViewSet):
 
 # ViewSet for managing Reports
 class ReportViewSet(viewsets.ModelViewSet):
+    queryset = Report.objects.all()
     serializer_class = ReportSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, OrderingFilter]

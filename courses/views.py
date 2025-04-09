@@ -5,14 +5,16 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Course, Enrollment, Lesson, LessonQuiz, Streak, Achievement, UserActivityLog
+from .models import Course, Enrollment, Lesson, LessonQuiz, Streak, Achievement
 from .serializers import (
     CourseSerializer, EnrollmentSerializer, LessonSerializer, LessonQuizSerializer, 
     StreakSerializer, AchievementSerializer
 )
 from .permissions import IsInstructorOrReadOnly, IsOwnerOrForbidden, IsStudent
+from forum.permissions import IsOwnerOrReadOnly
 from datetime import timedelta
 from django.utils.timezone import now
+from django.db.models import Q
 
 from .serializers import CourseSearchSerializer 
 from rest_framework import permissions
@@ -21,38 +23,64 @@ from rest_framework import permissions
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
-    permission_classes = [IsAuthenticated, IsInstructorOrReadOnly, IsOwnerOrForbidden]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['category', 'status', 'instructor']
-    search_fields = ['title', 'description']
-    ordering_fields = ['created_at', 'price', 'title']
+    filterset_fields = ['instructor', 'status', 'category']
+    search_fields = ['title', 'description', 'requirements', 'learning_outcomes']
+    ordering_fields = ['created_at', 'price', 'title', 'students_enrolled']
     ordering = ['-created_at']
 
+    def get_serializer_class(self):
+        if self.action == 'list' and self.request.query_params.get('search'):
+            return CourseSearchSerializer
+        return CourseSerializer
+
     def get_queryset(self):
-        queryset = super().get_queryset()
         user = self.request.user
-        
-        if user.role == 'student':
-            return queryset.filter(status='published')
-        elif user.role == 'instructor':
-            return queryset.filter(instructor=user)
-        return queryset
+        search_query = self.request.query_params.get('search', '')
+
+        if user.is_authenticated:
+            if user.role == 'student':
+                queryset = Course.objects.filter(
+                    enrollments__student=user,
+                    status='published'
+                )
+            elif user.role == 'instructor':
+                queryset = Course.objects.filter(instructor=user)
+            else:
+                queryset = Course.objects.filter(status='published')
+        else:
+            queryset = Course.objects.filter(status='published')
+
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
+
+        return queryset.distinct()
 
     def perform_create(self, serializer):
         serializer.save(instructor=self.request.user)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def enroll(self, request, pk=None):
         course = self.get_object()
         if course.status != 'published':
             return Response(
-                {"error": "Course is not published yet."},
+                {"error": "Cannot enroll in unpublished courses."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if request.user.role != 'student':
+            return Response(
+                {"error": "Only students can enroll in courses."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         enrollment, created = Enrollment.objects.get_or_create(
-            student=request.user,
             course=course,
+            student=request.user,
             defaults={'status': 'active'}
         )
 
@@ -62,8 +90,10 @@ class CourseViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        serializer = EnrollmentSerializer(enrollment)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            {"message": "Successfully enrolled in the course."},
+            status=status.HTTP_201_CREATED
+        )
 
     @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def analytics(self, request, pk=None):
@@ -85,6 +115,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 class EnrollmentViewSet(viewsets.ModelViewSet):
+    queryset = Enrollment.objects.all()
     serializer_class = EnrollmentSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -165,6 +196,7 @@ def grant_achievement(user, title, description, badge_image=None):
         )
 
 class LessonViewSet(viewsets.ModelViewSet):
+    queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -215,6 +247,7 @@ class LessonViewSet(viewsets.ModelViewSet):
         return Response({"message": "Lesson marked as complete."})
 
 class LessonQuizViewSet(viewsets.ModelViewSet):
+    queryset = LessonQuiz.objects.all()
     serializer_class = LessonQuizSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, OrderingFilter]

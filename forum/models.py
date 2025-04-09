@@ -5,8 +5,13 @@ from courses.models import Course
 class Thread(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="threads")
     title = models.CharField(max_length=255)
+    content = models.TextField()
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_pinned = models.BooleanField(default=False)
+    is_closed = models.BooleanField(default=False)
+    reply_count = models.PositiveIntegerField(default=0)
+    view_count = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return f"{self.course.title} - {self.title}"
@@ -19,6 +24,8 @@ class Post(models.Model):
     image = models.ImageField(upload_to="post_images/", null=True, blank=True)
     video = models.FileField(upload_to="post_videos/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_edited = models.BooleanField(default=False)
+    like_count = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return f"Post by {self.author} in {self.thread}"
